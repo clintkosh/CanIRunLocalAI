@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "canirunlocalai"
+version = "0.1.0"
+description = "Privacy-first local hardware scanner that recommends local AI / LLM models your device can realistically run."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "CanIRunLocalAI contributors" }
+]
+keywords = ["local-ai", "llm", "ollama", "hardware", "gpu", "vram", "msinfo", "llama-cpp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Hardware",
+  "Topic :: Utilities"
+]
+dependencies = [
+  "psutil>=5.9.8"
+]
+
+[project.urls]
+Homepage = "https://github.com/YOUR_USERNAME/CanIRunLocalAI"
+Issues = "https://github.com/YOUR_USERNAME/CanIRunLocalAI/issues"
+
+[project.scripts]
+canirunlocalai = "canirunlocalai.cli:main"
+cirla = "canirunlocalai.cli:main"
+
+[tool.setuptools.package-data]
+canirunlocalai = ["models_catalog.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
