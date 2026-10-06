@@ -4,15 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "canirunlocalai"
-version = "0.1.0"
-description = "Privacy-first local hardware scanner that recommends local AI / LLM models your device can realistically run."
+version = "0.2.0"
+description = "Privacy-first local hardware scanner, model fit advisor, and local inference benchmark."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [
-  { name = "CanIRunLocalAI contributors" }
-]
-keywords = ["local-ai", "llm", "ollama", "hardware", "gpu", "vram", "msinfo", "llama-cpp"]
+authors = [{ name = "CanIRunLocalAI contributors" }]
+keywords = ["local-ai", "llm", "ollama", "hardware", "gpu", "vram", "llama-cpp", "benchmark"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -28,13 +26,11 @@ classifiers = [
   "Topic :: System :: Hardware",
   "Topic :: Utilities"
 ]
-dependencies = [
-  "psutil>=5.9.8"
-]
+dependencies = ["psutil>=5.9.8"]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_USERNAME/CanIRunLocalAI"
-Issues = "https://github.com/YOUR_USERNAME/CanIRunLocalAI/issues"
+Homepage = "https://github.com/clintkosh/CanIRunLocalAI"
+Issues = "https://github.com/clintkosh/CanIRunLocalAI/issues"
 
 [project.scripts]
 canirunlocalai = "canirunlocalai.cli:main"
