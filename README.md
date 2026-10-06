@@ -1,34 +1,62 @@
 # CanIRunLocalAI
 
-**CanIRunLocalAI** is a privacy-first local hardware scanner that answers the question normal people actually have:
+**CanIRunLocalAI** is a privacy-first local AI scanner and benchmark tool. It answers two separate questions:
 
-> "What local AI / LLM models can this computer realistically run?"
+1. What models should this hardware be able to run?
+2. Which model/runtime combination is actually fastest on this machine?
 
-It scans your device, generates a hardware report, and recommends practical local models for Ollama / llama.cpp-style usage based on RAM, VRAM, GPU vendor, and use case.
+Version 0.2 adds a latency objective, current small-model candidates, runtime discovery, Ollama model/offload inventory, and real API-path benchmarking for Ollama and OpenAI-compatible local servers such as llama.cpp or llama-swap.
 
-No account. No telemetry. No cloud upload. No mystery hardware harvesting. The bar is low, somehow.
+## Fast assessment
 
-## What it does
+```bash
+cirla doctor --objective latency --use-case chat --redact
+```
 
-- Detects OS, CPU, RAM, storage, GPU, VRAM, and driver/runtime hints.
-- Checks for Ollama and Docker.
-- Recommends local LLMs by realistic fit:
-  - `great_fit`
-  - `works`
-  - `slow_or_offload`
-  - `cpu_only`
-  - `not_recommended`
-- Generates Markdown and JSON reports.
-- Supports redacted reports for sharing publicly.
-- Includes direct `ollama run ...` commands.
+The scanner checks CPU, RAM, storage, GPU/VRAM, Ollama, llama.cpp, llama-swap, bitnet.cpp hints, Docker, installed Ollama models, and currently loaded/offloaded Ollama models.
 
-## Current status
+Generate Markdown and JSON reports:
 
-Alpha / starter project.
+```bash
+cirla scan --objective latency --use-case chat --redact
+```
 
-The scanner works as a practical baseline, but model recommendations should stay conservative. Local LLM performance depends on quantization, context length, GPU backend, drivers, OS, background apps, and whether your computer has decided to express itself through thermal throttling.
+## Benchmark the path users actually feel
 
-## Install from source
+Ollama, warm-model latency with thinking disabled by default:
+
+```bash
+cirla bench --runtime ollama --model qwen3.5:4b --runs 5 --out reports/qwen35-4b-ollama.json
+```
+
+A local llama.cpp or llama-swap OpenAI-compatible endpoint:
+
+```bash
+cirla bench --runtime openai --endpoint http://127.0.0.1:8080 --model qwen3.5-4b --runs 5 --out reports/qwen35-4b-llamacpp.json
+```
+
+For privacy, benchmark endpoints are restricted to localhost/loopback. The benchmark reports median time-to-first-token, wall time, and token rates when exposed by the runtime. Ollama also reports model load time, prompt-evaluation throughput, and decode throughput.
+
+Use `--no-warmup` to measure cold-load behavior. Use `--think` only when reasoning latency is intentionally part of the test.
+
+## Recommendation objectives
+
+- `latency`: rewards smaller fully-resident models and fast first response.
+- `balanced`: mixes model quality and hardware fit.
+- `quality`: allows larger models to win when the hardware can support them.
+
+The October 2026 catalog starts with Qwen 3.5 and Gemma 4 candidates plus stable baselines. It is deliberately conservative: runtime bundles, multimodal projectors, context length, KV cache, and drivers add memory beyond raw Q4 weights.
+
+## Performance workflow
+
+1. Run `cirla doctor --objective latency`.
+2. Confirm Ollama `PROCESSOR` is fully GPU where GPU inference is intended; CPU/GPU splitting can be much slower.
+3. Benchmark the same model and comparable context through Ollama and native llama.cpp.
+4. Keep the lowest-latency good-enough model warm as the interactive default.
+5. Route harder work to a larger quality lane instead of making every request pay the larger-model cost.
+6. Re-run after runtime, driver, quant, model, or context changes.
+
+## Install
 
 ```bash
 python -m venv .venv
@@ -40,188 +68,33 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-## Usage
+## Privacy
 
-Generate both Markdown and JSON reports:
-
-```bash
-canirunlocalai scan --redact
-```
-
-Use the short alias:
-
-```bash
-cirla scan --redact
-```
-
-Focus recommendations on coding:
-
-```bash
-canirunlocalai scan --use-case coding --redact
-```
-
-Print a quick terminal report without writing files:
-
-```bash
-canirunlocalai doctor --use-case chat --redact
-```
-
-List the bundled model catalog:
-
-```bash
-canirunlocalai models
-```
-
-## Output files
-
-By default, reports are written to:
-
-```text
-reports/canirunlocalai-report.md
-reports/canirunlocalai-report.json
-```
-
-Use a custom folder:
-
-```bash
-canirunlocalai scan --out ./my-report --redact
-```
-
-## Example recommendation output
-
-```text
-Device class: entry-to-midrange GPU system
-Top recommendations:
-- qwen3:8b [great_fit] :: ollama run qwen3:8b
-- deepseek-r1:7b [great_fit] :: ollama run deepseek-r1:7b
-- llama3.1:8b [great_fit] :: ollama run llama3.1:8b
-- gemma3:4b [great_fit] :: ollama run gemma3:4b
-- qwen3:4b [great_fit] :: ollama run qwen3:4b
-```
-
-## Privacy model
-
-CanIRunLocalAI runs locally. It does not upload scan data anywhere.
-
-Use this when sharing reports:
-
-```bash
-canirunlocalai scan --redact
-```
-
-Redaction removes or trims common identifiers such as hostname, username, and detailed local paths.
-
-## Hardware detection notes
-
-### Windows
-
-Windows is the primary target.
-
-The scanner uses:
-
-- Python `platform` and `psutil` for CPU/RAM/storage.
-- `nvidia-smi` for NVIDIA GPU memory when available.
-- PowerShell `Get-CimInstance Win32_VideoController` as a GPU fallback.
-
-Note: Windows `AdapterRAM` can be inaccurate for some modern GPUs. `nvidia-smi` is preferred for NVIDIA VRAM.
-
-### macOS
-
-Uses `system_profiler SPDisplaysDataType` for GPU info and Python/psutil for general hardware.
-
-Apple Silicon uses unified memory, so model-fit logic is necessarily conservative.
-
-### Linux
-
-Uses `nvidia-smi` if available and `lspci` as a fallback. Many Linux systems need extra tools installed before VRAM can be detected reliably.
-
-## Recommendation logic
-
-The bundled catalog estimates Q4-class memory requirements for common model families. Fit scoring considers:
-
-- total system RAM
-- available RAM
-- detected VRAM
-- GPU vendor/backend hint
-- estimated model size
-- use case match
-- conservative headroom for OS/context/KV cache
-
-The tool intentionally avoids saying "yes" just because a model might technically load. A model that loads but runs like a haunted fax machine is not a good recommendation.
-
-## Bundled seed model families
-
-- Qwen3
-- Gemma 3
-- DeepSeek-R1 distills
-- Llama 3.1 / 3.2
-- gpt-oss
-
-The catalog lives in:
-
-```text
-canirunlocalai/models_catalog.json
-```
-
-Update that file as local model options change.
-
-## GitHub project setup
-
-After creating a new GitHub repo named `CanIRunLocalAI`:
-
-```bash
-git init
-git add .
-git commit -m "Initial CanIRunLocalAI alpha"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/CanIRunLocalAI.git
-git push -u origin main
-```
-
-Then edit `pyproject.toml` and replace `YOUR_USERNAME` with your GitHub username.
+CanIRunLocalAI runs locally. It does not upload scan data. Use `--redact` before sharing reports.
 
 ## Development
-
-Run tests:
 
 ```bash
 pip install -e . pytest
 pytest
 ```
 
-Run the CLI locally:
-
-```bash
-python -m canirunlocalai doctor --redact
-```
-
 ## Roadmap
 
-- [ ] Add richer AMD GPU detection.
-- [ ] Add Apple unified memory-specific recommendation profiles.
-- [ ] Add LM Studio and llama.cpp command output.
-- [ ] Add optional benchmark mode.
-- [ ] Add signed Windows executable build.
-- [ ] Add GitHub Pages manual estimator.
-- [ ] Add report import/export UI.
-- [ ] Add model catalog updater script.
+- [x] llama.cpp runtime detection and OpenAI-compatible benchmark path
+- [x] Ollama model/load inventory
+- [x] optional benchmark mode
+- [x] latency-vs-quality recommendation objective
+- [ ] automatic same-model Ollama vs llama.cpp tournament runner
+- [ ] direct `llama-bench` orchestration for GGUF files
+- [ ] richer AMD/Intel backend benchmarking
+- [ ] signed Windows executable build
+- [ ] GitHub Pages estimator and report comparison UI
+- [ ] signed/updatable model catalog feed
 
 ## Safety and limitations
 
-This is not a benchmark suite. It is a fit advisor.
-
-Real-world performance varies based on:
-
-- quantization
-- context length
-- model backend
-- GPU driver
-- thermal limits
-- RAM pressure
-- disk speed
-- running background apps
-
-When in doubt, start with a smaller model and move up.
+The recommendation catalog is a starting hypothesis. The benchmark is the authority for the target machine. Thermal throttling, context length, drivers, background GPU use, quantization, and runtime versions can materially change results.
 
 ## License
 
