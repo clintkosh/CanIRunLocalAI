@@ -1,3 +1,3 @@
-"""CanIRunLocalAI: local hardware scanner and LLM fit advisor."""
+"""CanIRunLocalAI: local hardware scanner, fit advisor, and inference benchmark."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
